@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام الكاشير وإدارة السوبر ماركت</title>
+    <title>نظام الكاشير وإدارة السوبر ماركت - الوضع الليلي</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,12 +12,15 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#0284c7', // light blue
-                        secondary: '#1e293b', // slate
-                        success: '#16a34a', // green
-                        danger: '#dc2626', // red
-                        warning: '#d97706', // amber
-                        background: '#f8fafc',
+                        primary: '#38bdf8', // Light blue suitable for dark mode
+                        secondary: '#0f172a', // Sidebar dark
+                        success: '#22c55e', 
+                        danger: '#ef4444', 
+                        warning: '#f59e0b', 
+                        background: '#020617', // Very dark slate (Main background)
+                        surface: '#0f172a', // Dark slate (Cards and tables)
+                        surfaceAlt: '#1e293b', // Lighter slate (Inputs, headers)
+                        borderDark: '#334155' // Border color
                     },
                     fontFamily: {
                         sans: ['Tajawal', 'sans-serif'],
@@ -45,18 +48,18 @@
     <style>
         body {
             font-family: 'Tajawal', sans-serif;
-            background-color: #f8fafc;
-            color: #334155;
-            overflow: hidden; /* Prevent body scroll, handle inside components */
+            background-color: #020617;
+            color: #f1f5f9;
+            overflow: hidden; 
         }
         
-        /* Custom Scrollbar */
+        /* Custom Scrollbar for Dark Mode */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        /* Thermal Print Styles (80mm) */
+        /* Thermal Print Styles (80mm) matching requested layout */
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
@@ -66,16 +69,49 @@
                 top: 0;
                 width: 80mm;
                 margin: 0;
-                padding: 0;
+                padding: 4px;
                 font-family: 'Arial', sans-serif;
-                font-size: 12px;
-                color: black;
+                color: black !important;
+                background-color: white !important;
             }
             .no-print { display: none !important; }
             @page { margin: 0; }
+
+            /* Specific Print Table Styles */
+            .print-receipt {
+                background-color: white;
+                color: black;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            .print-table {
+                width: 100%;
+                border-collapse: collapse;
+                border: 2px solid #000;
+                margin-bottom: 8px;
+            }
+            .print-table th, .print-table td {
+                border: 1px solid #000;
+                padding: 4px;
+                text-align: center;
+                color: black !important;
+            }
+            .totals-table {
+                width: 65%;
+                border-collapse: collapse;
+                border: 2px solid #000;
+                float: left;
+                margin-bottom: 10px;
+            }
+            .totals-table td {
+                border: 1px solid #000;
+                padding: 4px;
+                color: black !important;
+            }
+            .totals-table td:first-child { text-align: right; padding-right: 8px; }
+            .totals-table td:last-child { text-align: center; }
+            .clear-both { clear: both; }
         }
-        
-        .dashed-line { border-top: 1px dashed #000; margin: 8px 0; }
     </style>
 </head>
 <body>
@@ -84,7 +120,6 @@
     <script type="text/babel">
         const { useState, useEffect, createContext, useContext, useMemo, useRef } = React;
 
-        // --- Custom Hooks for LocalStorage ---
         function useLocalStorage(key, initialValue) {
             const [storedValue, setStoredValue] = useState(() => {
                 try {
@@ -108,12 +143,10 @@
             return [storedValue, setValue];
         }
 
-        // --- Helpers ---
         const formatCurrency = (num) => new Intl.NumberFormat('ar-EG', { style: 'currency', currency: 'EGP' }).format(num || 0);
         const formatDate = (dateStr) => new Intl.DateTimeFormat('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(dateStr));
         const generateId = () => Math.random().toString(36).substr(2, 9);
 
-        // --- Context ---
         const AppContext = createContext();
 
         const AppProvider = ({ children }) => {
@@ -143,7 +176,6 @@
                 <AppContext.Provider value={value}>
                     {children}
                     
-                    {/* Toast Notification */}
                     {toast && (
                         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-xl text-white font-bold z-[100] flex items-center gap-3 transition-all animate-bounce ${toast.type === 'error' ? 'bg-danger' : 'bg-success'}`}>
                             <i className={`fas ${toast.type === 'error' ? 'fa-exclamation-triangle' : 'fa-check-circle'} text-xl`}></i>
@@ -151,47 +183,88 @@
                         </div>
                     )}
 
-                    {/* Hidden Print Area */}
-                    <div id="print-area" className="hidden print:block bg-white p-2">
+                    {/* Hidden Print Area - Matching exactly the provided image structure */}
+                    <div id="print-area" className="hidden print:block bg-white text-black">
                         {printData && (
-                            <div dir="rtl">
-                                <h2 className="text-center font-bold text-lg mb-1">سوبر ماركت النور</h2>
-                                <p className="text-center text-xs mb-3">رقم الفاتورة: {printData.id}</p>
-                                <p className="text-xs mb-2">التاريخ: {formatDate(printData.date)}</p>
-                                <div className="dashed-line"></div>
-                                <table className="w-full text-xs text-right">
+                            <div dir="rtl" className="print-receipt bg-white text-black p-1">
+                                
+                                {/* Top Header Table */}
+                                <table className="print-table">
+                                    <tbody>
+                                        <tr>
+                                            <td className="w-1/4">رقم الطاولة</td>
+                                            <td className="w-1/4">--</td>
+                                            <td className="w-1/4">رقم الطلبية</td>
+                                            <td className="w-1/4">{printData.id.replace('INV-', '').slice(-4)}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                {/* Date & Time Info */}
+                                <div className="flex justify-between items-center px-1 mb-2">
+                                    <span>الساعة: {new Date(printData.date).toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit'})}</span>
+                                    <span>التاريخ: {new Date(printData.date).toLocaleDateString('en-GB')}</span>
+                                </div>
+                                <div className="text-center mb-3">
+                                    اسم العميل: عميل نقدي
+                                </div>
+
+                                {/* Items Table */}
+                                <table className="print-table">
                                     <thead>
                                         <tr>
-                                            <th className="py-1">الصنف</th>
-                                            <th className="py-1 text-center">الكمية</th>
-                                            <th className="py-1 text-left">السعر</th>
+                                            <th className="w-2/5">الصنف</th>
+                                            <th className="w-1/5">الكمية</th>
+                                            <th className="w-1/5">السعر</th>
+                                            <th className="w-1/5">الإجمالي</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {printData.items.map((item, idx) => (
                                             <tr key={idx}>
-                                                <td className="py-1">{item.name}</td>
-                                                <td className="py-1 text-center">{item.qty}</td>
-                                                <td className="py-1 text-left">{item.total}</td>
+                                                <td>{item.name}</td>
+                                                <td>{item.qty}</td>
+                                                <td>{item.price.toFixed(2)}</td>
+                                                <td>{item.total.toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                <div className="dashed-line"></div>
-                                <div className="text-xs font-bold flex justify-between py-1">
-                                    <span>الإجمالي:</span>
-                                    <span>{printData.total} ج.م</span>
+
+                                {/* Totals Section (Left Aligned) */}
+                                <div>
+                                    <table className="totals-table">
+                                        <tbody>
+                                            <tr>
+                                                <td>الإجمالي</td>
+                                                <td>{printData.total.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>الخصم</td>
+                                                <td>0.00</td>
+                                            </tr>
+                                            <tr>
+                                                <td>المبلغ للدفع</td>
+                                                <td>{printData.total.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>المبلغ المدفوع</td>
+                                                <td>{printData.paid.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>المتبقي</td>
+                                                <td>{printData.change.toFixed(2)}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <div className="text-xs flex justify-between py-1">
-                                    <span>المدفوع:</span>
-                                    <span>{printData.paid} ج.م</span>
+                                <div className="clear-both"></div>
+
+                                {/* Footer */}
+                                <div className="mt-3 pt-2 border-t-[3px] border-double border-black text-center">
+                                    <p>إدارة سوبر ماركت النور</p>
+                                    <p>للتواصل والاستفسار جوال: 01000000000</p>
                                 </div>
-                                <div className="text-xs flex justify-between py-1">
-                                    <span>الباقي:</span>
-                                    <span>{printData.change} ج.م</span>
-                                </div>
-                                <div className="dashed-line mt-3"></div>
-                                <p className="text-center text-xs mt-2 font-bold">شكراً لزيارتكم!</p>
                             </div>
                         )}
                     </div>
@@ -201,14 +274,14 @@
 
         const useAppContext = () => useContext(AppContext);
 
-        // --- Shared Components ---
+        // --- Shared Components (Dark Mode) ---
         const Modal = ({ isOpen, onClose, title, children }) => {
             if (!isOpen) return null;
             return (
-                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-                        <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                            <h3 className="text-xl font-bold text-secondary">{title}</h3>
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-surface rounded-xl shadow-2xl border border-borderDark w-full max-w-lg flex flex-col max-h-[90vh]">
+                        <div className="px-6 py-4 border-b border-borderDark flex justify-between items-center bg-surfaceAlt rounded-t-xl">
+                            <h3 className="text-xl font-bold text-white">{title}</h3>
                             <button onClick={onClose} className="text-gray-400 hover:text-danger transition-colors">
                                 <i className="fas fa-times text-xl"></i>
                             </button>
@@ -224,13 +297,13 @@
         const ConfirmModal = ({ isOpen, onClose, onConfirm, message }) => {
             if (!isOpen) return null;
             return (
-                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center">
+                <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-surface rounded-lg shadow-xl border border-borderDark w-full max-w-sm p-6 text-center">
                         <i className="fas fa-exclamation-circle text-5xl text-warning mb-4"></i>
-                        <p className="text-lg font-bold text-gray-800 mb-6">{message}</p>
+                        <p className="text-lg font-bold text-white mb-6">{message}</p>
                         <div className="flex gap-3 justify-center">
                             <button onClick={onConfirm} className="px-6 py-2 bg-danger text-white rounded-lg font-bold hover:bg-red-700">تأكيد</button>
-                            <button onClick={onClose} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300">إلغاء</button>
+                            <button onClick={onClose} className="px-6 py-2 bg-surfaceAlt text-white rounded-lg font-bold hover:bg-gray-600 border border-borderDark">إلغاء</button>
                         </div>
                     </div>
                 </div>
@@ -239,14 +312,11 @@
 
         // --- Modules ---
 
-        // 1. Dashboard
         const Dashboard = () => {
             const { sales, products, expenses } = useAppContext();
-
             const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
             const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
             
-            // Profit Calculation (Sales Total - COGS) - Expenses
             let cogs = 0;
             sales.forEach(sale => {
                 sale.items.forEach(item => {
@@ -255,50 +325,49 @@
             });
             const grossProfit = totalSales - cogs;
             const netProfit = grossProfit - totalExpenses;
-
             const lowStockProducts = products.filter(p => p.stock <= 5);
 
             return (
                 <div className="p-6 h-full overflow-y-auto">
-                    <h2 className="text-2xl font-bold text-secondary mb-6"><i className="fas fa-chart-line ml-2"></i>نظرة عامة</h2>
+                    <h2 className="text-2xl font-bold text-white mb-6"><i className="fas fa-chart-line ml-2 text-primary"></i>نظرة عامة</h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex items-center border-r-4 border-r-primary">
-                            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-primary text-xl ml-4"><i className="fas fa-money-bill-wave"></i></div>
+                        <div className="bg-surface rounded-xl p-6 shadow-sm border border-borderDark flex items-center border-r-4 border-r-primary">
+                            <div className="w-12 h-12 rounded-full bg-blue-900/50 flex items-center justify-center text-primary text-xl ml-4"><i className="fas fa-money-bill-wave"></i></div>
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">إجمالي المبيعات</p>
-                                <p className="text-2xl font-bold text-gray-800">{formatCurrency(totalSales)}</p>
+                                <p className="text-sm text-gray-400 font-medium">إجمالي المبيعات</p>
+                                <p className="text-2xl font-bold text-white">{formatCurrency(totalSales)}</p>
                             </div>
                         </div>
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex items-center border-r-4 border-r-success">
-                            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-success text-xl ml-4"><i className="fas fa-wallet"></i></div>
+                        <div className="bg-surface rounded-xl p-6 shadow-sm border border-borderDark flex items-center border-r-4 border-r-success">
+                            <div className="w-12 h-12 rounded-full bg-green-900/50 flex items-center justify-center text-success text-xl ml-4"><i className="fas fa-wallet"></i></div>
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">صافي الربح التقديري</p>
-                                <p className={`text-2xl font-bold ${netProfit < 0 ? 'text-danger' : 'text-gray-800'}`}>{formatCurrency(netProfit)}</p>
+                                <p className="text-sm text-gray-400 font-medium">صافي الربح التقديري</p>
+                                <p className={`text-2xl font-bold ${netProfit < 0 ? 'text-danger' : 'text-white'}`}>{formatCurrency(netProfit)}</p>
                             </div>
                         </div>
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex items-center border-r-4 border-r-warning">
-                            <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-warning text-xl ml-4"><i className="fas fa-boxes"></i></div>
+                        <div className="bg-surface rounded-xl p-6 shadow-sm border border-borderDark flex items-center border-r-4 border-r-warning">
+                            <div className="w-12 h-12 rounded-full bg-orange-900/50 flex items-center justify-center text-warning text-xl ml-4"><i className="fas fa-boxes"></i></div>
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">عدد المنتجات</p>
-                                <p className="text-2xl font-bold text-gray-800">{products.length}</p>
+                                <p className="text-sm text-gray-400 font-medium">عدد المنتجات</p>
+                                <p className="text-2xl font-bold text-white">{products.length}</p>
                             </div>
                         </div>
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex items-center border-r-4 border-r-danger">
-                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-danger text-xl ml-4"><i className="fas fa-exclamation-triangle"></i></div>
+                        <div className="bg-surface rounded-xl p-6 shadow-sm border border-borderDark flex items-center border-r-4 border-r-danger">
+                            <div className="w-12 h-12 rounded-full bg-red-900/50 flex items-center justify-center text-danger text-xl ml-4"><i className="fas fa-exclamation-triangle"></i></div>
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">نواقص المخزون</p>
-                                <p className="text-2xl font-bold text-gray-800">{lowStockProducts.length}</p>
+                                <p className="text-sm text-gray-400 font-medium">نواقص المخزون</p>
+                                <p className="text-2xl font-bold text-white">{lowStockProducts.length}</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">منتجات أوشكت على النفاد (أقل من 5)</h3>
+                        <div className="bg-surface rounded-xl shadow-sm border border-borderDark p-6">
+                            <h3 className="text-lg font-bold text-white mb-4 pb-2 border-b border-borderDark">منتجات أوشكت على النفاد (أقل من 5)</h3>
                             {lowStockProducts.length > 0 ? (
                                 <table className="w-full text-right">
-                                    <thead className="text-gray-500 text-sm">
+                                    <thead className="text-gray-400 text-sm">
                                         <tr>
                                             <th className="pb-3">المنتج</th>
                                             <th className="pb-3 text-center">المتبقي</th>
@@ -306,31 +375,31 @@
                                     </thead>
                                     <tbody>
                                         {lowStockProducts.map(p => (
-                                            <tr key={p.id} className="border-t border-gray-50">
-                                                <td className="py-3 font-medium">{p.name}</td>
+                                            <tr key={p.id} className="border-t border-borderDark">
+                                                <td className="py-3 font-medium text-gray-200">{p.name}</td>
                                                 <td className="py-3 text-center text-danger font-bold">{p.stock}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             ) : (
-                                <p className="text-gray-500 text-center py-4">لا توجد نواقص حالياً</p>
+                                <p className="text-gray-400 text-center py-4">لا توجد نواقص حالياً</p>
                             )}
                         </div>
 
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                            <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b">آخر الفواتير</h3>
+                        <div className="bg-surface rounded-xl shadow-sm border border-borderDark p-6">
+                            <h3 className="text-lg font-bold text-white mb-4 pb-2 border-b border-borderDark">آخر الفواتير</h3>
                             <div className="space-y-3">
                                 {sales.slice(-5).reverse().map(sale => (
-                                    <div key={sale.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                    <div key={sale.id} className="flex justify-between items-center p-3 bg-surfaceAlt rounded-lg border border-borderDark">
                                         <div>
-                                            <p className="font-bold text-gray-800">{sale.id}</p>
-                                            <p className="text-xs text-gray-500">{formatDate(sale.date)}</p>
+                                            <p className="font-bold text-white">{sale.id}</p>
+                                            <p className="text-xs text-gray-400">{formatDate(sale.date)}</p>
                                         </div>
                                         <p className="font-bold text-primary">{formatCurrency(sale.total)}</p>
                                     </div>
                                 ))}
-                                {sales.length === 0 && <p className="text-gray-500 text-center py-4">لا توجد مبيعات بعد</p>}
+                                {sales.length === 0 && <p className="text-gray-400 text-center py-4">لا توجد مبيعات بعد</p>}
                             </div>
                         </div>
                     </div>
@@ -338,7 +407,6 @@
             );
         };
 
-        // 2. POS
         const POS = () => {
             const { products, setProducts, sales, setSales, showToast, setPrintData } = useAppContext();
             const [cart, setCart] = useState([]);
@@ -347,18 +415,12 @@
             
             const barcodeInputRef = useRef(null);
 
-            // Keep focus on input for fast barcode scanning
-            useEffect(() => {
-                barcodeInputRef.current?.focus();
-            }, [cart]);
+            useEffect(() => { barcodeInputRef.current?.focus(); }, [cart]);
 
-            const filteredProducts = products.filter(p => 
-                p.name.includes(search) || (p.barcode && p.barcode.includes(search))
-            );
+            const filteredProducts = products.filter(p => p.name.includes(search) || (p.barcode && p.barcode.includes(search)));
 
             const addToCart = (product) => {
                 if (product.stock <= 0) return showToast('المنتج نفد من المخزون!', 'error');
-                
                 const existing = cart.find(item => item.id === product.id);
                 if (existing) {
                     if (existing.qty >= product.stock) return showToast('الكمية المطلوبة تتجاوز المخزون!', 'error');
@@ -394,17 +456,12 @@
                 if (cart.length === 0) return showToast('السلة فارغة', 'error');
                 if (Number(paid) < total) return showToast('المبلغ المدفوع أقل من الإجمالي', 'error');
 
-                // 1. Deduct Stock
                 const updatedProducts = products.map(p => {
                     const cartItem = cart.find(i => i.id === p.id);
-                    if (cartItem) {
-                        return { ...p, stock: p.stock - cartItem.qty };
-                    }
-                    return p;
+                    return cartItem ? { ...p, stock: p.stock - cartItem.qty } : p;
                 });
                 setProducts(updatedProducts);
 
-                // 2. Create Sale Record
                 const saleRecord = {
                     id: 'INV-' + Date.now().toString().slice(-6),
                     date: new Date().toISOString(),
@@ -414,21 +471,15 @@
                     change: change > 0 ? change : 0
                 };
                 setSales([...sales, saleRecord]);
-
-                // 3. Set Print Data and trigger print
                 setPrintData(saleRecord);
                 setTimeout(() => { window.print(); setPrintData(null); }, 500);
 
-                // 4. Reset POS
-                setCart([]);
-                setPaid('');
-                setSearch('');
-                showToast('تم حفظ الفاتورة وتحديث المخزون بنجاح');
+                setCart([]); setPaid(''); setSearch('');
+                showToast('تم حفظ الفاتورة بنجاح');
             };
 
             return (
-                <div className="flex h-full bg-gray-100 overflow-hidden">
-                    {/* RIGHT SIDE: Products Grid */}
+                <div className="flex h-full bg-background overflow-hidden">
                     <div className="flex-1 flex flex-col p-4 overflow-hidden">
                         <form onSubmit={handleBarcodeScan} className="mb-4 relative shadow-sm">
                             <i className="fas fa-barcode absolute right-4 top-3.5 text-gray-400 text-lg"></i>
@@ -436,7 +487,7 @@
                                 ref={barcodeInputRef}
                                 type="text" 
                                 placeholder="ابحث بالاسم أو امسح الباركود..." 
-                                className="w-full pl-4 pr-12 py-3 rounded-xl border-none focus:ring-2 focus:ring-primary outline-none text-lg"
+                                className="w-full pl-4 pr-12 py-3 rounded-xl border border-borderDark focus:ring-1 focus:ring-primary outline-none text-lg bg-surfaceAlt text-white"
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                             />
@@ -453,21 +504,21 @@
                                     <div 
                                         key={product.id} 
                                         onClick={() => addToCart(product)}
-                                        className={`bg-white rounded-xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition flex flex-col justify-between h-32 select-none ${product.stock <= 0 ? 'opacity-50 grayscale' : ''}`}
+                                        className={`bg-surface rounded-xl p-4 border border-borderDark cursor-pointer hover:bg-surfaceAlt hover:border-primary/50 transition flex flex-col justify-between h-32 select-none ${product.stock <= 0 ? 'opacity-50 grayscale' : ''}`}
                                     >
                                         <div>
-                                            <h4 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{product.name}</h4>
-                                            <span className="text-xs text-gray-500 mt-1 block">{product.barcode || 'بدون باركود'}</span>
+                                            <h4 className="font-bold text-white text-sm leading-tight line-clamp-2">{product.name}</h4>
+                                            <span className="text-xs text-gray-400 mt-1 block">{product.barcode || 'بدون باركود'}</span>
                                         </div>
                                         <div className="flex justify-between items-end mt-2">
                                             <span className="font-bold text-primary">{product.sellPrice} ج</span>
-                                            <span className={`text-xs font-bold px-2 py-1 rounded ${product.stock > 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>متاح: {product.stock}</span>
+                                            <span className={`text-xs font-bold px-2 py-1 rounded ${product.stock > 5 ? 'bg-green-900/50 text-success' : 'bg-red-900/50 text-danger'}`}>متاح: {product.stock}</span>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                             {filteredProducts.length === 0 && (
-                                <div className="text-center text-gray-400 mt-20 flex flex-col items-center">
+                                <div className="text-center text-gray-500 mt-20 flex flex-col items-center">
                                     <i className="fas fa-box-open text-6xl mb-4 opacity-50"></i>
                                     <p className="text-lg">لا توجد منتجات تطابق البحث</p>
                                 </div>
@@ -475,32 +526,31 @@
                         </div>
                     </div>
 
-                    {/* LEFT SIDE: Cart */}
-                    <div className="w-[380px] bg-white shadow-xl z-10 flex flex-col border-r border-gray-200">
-                        <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-gray-800"><i className="fas fa-shopping-cart ml-2 text-primary"></i>سلة المشتريات</h3>
-                            <button onClick={() => setCart([])} className="text-danger hover:bg-red-50 p-2 rounded-lg text-sm font-bold transition">إفراغ <i className="fas fa-trash ml-1"></i></button>
+                    <div className="w-[380px] bg-surface z-10 flex flex-col border-r border-borderDark shadow-xl">
+                        <div className="p-4 bg-surfaceAlt border-b border-borderDark flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-white"><i className="fas fa-shopping-cart ml-2 text-primary"></i>سلة المشتريات</h3>
+                            <button onClick={() => setCart([])} className="text-danger hover:bg-red-900/30 p-2 rounded-lg text-sm font-bold transition">إفراغ <i className="fas fa-trash ml-1"></i></button>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
                             {cart.length === 0 ? (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-60">
+                                <div className="h-full flex flex-col items-center justify-center text-gray-500">
                                     <i className="fas fa-basket-shopping text-6xl mb-4"></i>
                                     <p>السلة فارغة، ابدأ بإضافة المنتجات</p>
                                 </div>
                             ) : (
                                 cart.map(item => (
-                                    <div key={item.id} className="bg-gray-50 border border-gray-100 p-3 rounded-lg flex justify-between items-center">
+                                    <div key={item.id} className="bg-surfaceAlt border border-borderDark p-3 rounded-lg flex justify-between items-center">
                                         <div className="flex-1">
-                                            <h4 className="font-bold text-gray-800 text-sm">{item.name}</h4>
+                                            <h4 className="font-bold text-white text-sm">{item.name}</h4>
                                             <p className="text-xs text-primary font-bold">{item.sellPrice} ج</p>
                                         </div>
-                                        <div className="flex items-center gap-2 bg-white border rounded-lg px-2 py-1 shadow-sm">
-                                            <button onClick={() => updateQty(item.id, item.qty - 1)} className="text-gray-500 hover:text-danger px-1"><i className="fas fa-minus"></i></button>
-                                            <span className="font-bold w-6 text-center">{item.qty}</span>
-                                            <button onClick={() => updateQty(item.id, item.qty + 1)} className="text-gray-500 hover:text-success px-1"><i className="fas fa-plus"></i></button>
+                                        <div className="flex items-center gap-2 bg-surface border border-borderDark rounded-lg px-2 py-1">
+                                            <button onClick={() => updateQty(item.id, item.qty - 1)} className="text-gray-400 hover:text-danger px-1"><i className="fas fa-minus"></i></button>
+                                            <span className="font-bold w-6 text-center text-white">{item.qty}</span>
+                                            <button onClick={() => updateQty(item.id, item.qty + 1)} className="text-gray-400 hover:text-success px-1"><i className="fas fa-plus"></i></button>
                                         </div>
-                                        <div className="w-16 text-left font-bold text-gray-800 mr-2">
+                                        <div className="w-16 text-left font-bold text-white mr-2">
                                             {item.sellPrice * item.qty} ج
                                         </div>
                                     </div>
@@ -508,18 +558,18 @@
                             )}
                         </div>
 
-                        <div className="p-6 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                            <div className="flex justify-between items-center mb-4 border-b pb-4">
-                                <span className="text-gray-500 font-bold text-lg">الإجمالي:</span>
+                        <div className="p-6 bg-surfaceAlt border-t border-borderDark">
+                            <div className="flex justify-between items-center mb-4 border-b border-borderDark pb-4">
+                                <span className="text-gray-400 font-bold text-lg">الإجمالي:</span>
                                 <span className="text-3xl font-black text-primary">{formatCurrency(total)}</span>
                             </div>
                             
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">المبلغ المدفوع من العميل</label>
+                                    <label className="block text-xs font-bold text-gray-400 mb-1">المبلغ المدفوع من العميل</label>
                                     <input 
                                         type="number" 
-                                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-xl font-bold text-center focus:border-primary focus:outline-none bg-gray-50"
+                                        className="w-full border-2 border-borderDark rounded-xl px-4 py-3 text-xl font-bold text-center focus:border-primary focus:outline-none bg-surface text-white"
                                         placeholder="0"
                                         value={paid}
                                         onChange={e => setPaid(e.target.value)}
@@ -528,7 +578,7 @@
                                 </div>
                                 
                                 {Number(paid) > 0 && Number(paid) >= total && (
-                                    <div className="flex justify-between items-center bg-green-50 p-3 rounded-lg border border-green-100">
+                                    <div className="flex justify-between items-center bg-green-900/30 p-3 rounded-lg border border-success/30">
                                         <span className="text-success font-bold">الباقي للعميل:</span>
                                         <span className="text-xl font-black text-success">{formatCurrency(change)}</span>
                                     </div>
@@ -539,8 +589,8 @@
                                     disabled={cart.length === 0 || Number(paid) < total}
                                     className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
                                         cart.length === 0 || Number(paid) < total 
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
-                                        : 'bg-primary hover:bg-blue-700 text-white shadow-lg transform hover:-translate-y-1'
+                                        ? 'bg-surface border border-borderDark text-gray-500 cursor-not-allowed' 
+                                        : 'bg-primary hover:bg-blue-600 text-white shadow-lg transform hover:-translate-y-1'
                                     }`}
                                 >
                                     <i className="fas fa-print"></i> دفع وإصدار الفاتورة
@@ -552,7 +602,6 @@
             );
         };
 
-        // 3. Products Management
         const Products = () => {
             const { products, setProducts, showToast } = useAppContext();
             const [isModalOpen, setIsModalOpen] = useState(false);
@@ -571,27 +620,15 @@
 
             const handleSubmit = (e) => {
                 e.preventDefault();
-                
-                // Form Validation
                 if (!formData.name || !formData.buyPrice || !formData.sellPrice || formData.stock === '') {
                     return showToast('الرجاء إكمال جميع الحقول الأساسية', 'error');
                 }
-
-                // Barcode Duplicate Validation (allow empty barcodes, but if provided, must be unique)
                 if (formData.barcode) {
                     const isDuplicate = products.some(p => p.barcode === formData.barcode && p.id !== formData.id);
-                    if (isDuplicate) {
-                        return showToast('هذا الباركود مسجل لمنتج آخر!', 'error');
-                    }
+                    if (isDuplicate) return showToast('هذا الباركود مسجل لمنتج آخر!', 'error');
                 }
 
-                const newProduct = {
-                    ...formData,
-                    buyPrice: Number(formData.buyPrice),
-                    sellPrice: Number(formData.sellPrice),
-                    stock: Number(formData.stock)
-                };
-
+                const newProduct = { ...formData, buyPrice: Number(formData.buyPrice), sellPrice: Number(formData.sellPrice), stock: Number(formData.stock) };
                 const existingIndex = products.findIndex(p => p.id === formData.id);
                 if (existingIndex >= 0) {
                     const newProducts = [...products];
@@ -614,55 +651,55 @@
             return (
                 <div className="p-6 h-full flex flex-col">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-secondary"><i className="fas fa-boxes ml-2"></i>إدارة المنتجات والمخزون</h2>
-                        <button onClick={() => openModal()} className="bg-primary hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition flex items-center gap-2">
+                        <h2 className="text-2xl font-bold text-white"><i className="fas fa-boxes ml-2 text-primary"></i>إدارة المنتجات والمخزون</h2>
+                        <button onClick={() => openModal()} className="bg-primary hover:bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition flex items-center gap-2">
                             <i className="fas fa-plus"></i> إضافة منتج
                         </button>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex gap-4">
+                    <div className="bg-surface p-4 rounded-xl shadow-sm border border-borderDark mb-6 flex gap-4">
                         <div className="relative flex-1">
                             <i className="fas fa-search absolute right-4 top-3.5 text-gray-400"></i>
                             <input 
                                 type="text" 
                                 placeholder="بحث بالاسم أو الباركود..." 
-                                className="w-full pl-4 pr-12 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                                className="w-full pl-4 pr-12 py-3 border border-borderDark bg-surfaceAlt text-white rounded-lg focus:outline-none focus:border-primary"
                                 value={search} onChange={e => setSearch(e.target.value)}
                             />
                         </div>
                     </div>
 
-                    <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="flex-1 bg-surface rounded-xl shadow-sm border border-borderDark overflow-hidden flex flex-col">
                         <div className="overflow-x-auto flex-1">
                             <table className="w-full text-right">
-                                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                                <thead className="bg-surfaceAlt border-b border-borderDark sticky top-0">
                                     <tr>
-                                        <th className="p-4 text-gray-600 font-bold">المنتج / الباركود</th>
-                                        <th className="p-4 text-gray-600 font-bold">التصنيف</th>
-                                        <th className="p-4 text-gray-600 font-bold">سعر الشراء</th>
-                                        <th className="p-4 text-gray-600 font-bold">سعر البيع</th>
-                                        <th className="p-4 text-gray-600 font-bold">المخزون</th>
-                                        <th className="p-4 text-gray-600 font-bold text-center">إجراءات</th>
+                                        <th className="p-4 text-gray-300 font-bold">المنتج / الباركود</th>
+                                        <th className="p-4 text-gray-300 font-bold">التصنيف</th>
+                                        <th className="p-4 text-gray-300 font-bold">سعر الشراء</th>
+                                        <th className="p-4 text-gray-300 font-bold">سعر البيع</th>
+                                        <th className="p-4 text-gray-300 font-bold">المخزون</th>
+                                        <th className="p-4 text-gray-300 font-bold text-center">إجراءات</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredProducts.map(product => (
-                                        <tr key={product.id} className="border-b border-gray-50 hover:bg-blue-50 transition">
+                                        <tr key={product.id} className="border-b border-borderDark hover:bg-surfaceAlt transition">
                                             <td className="p-4">
-                                                <div className="font-bold text-gray-800">{product.name}</div>
-                                                <div className="text-xs text-gray-500 font-mono mt-1">{product.barcode || '---'}</div>
+                                                <div className="font-bold text-white">{product.name}</div>
+                                                <div className="text-xs text-gray-400 font-mono mt-1">{product.barcode || '---'}</div>
                                             </td>
-                                            <td className="p-4 text-gray-600">{product.category || 'عام'}</td>
-                                            <td className="p-4 text-gray-600">{product.buyPrice} ج</td>
+                                            <td className="p-4 text-gray-300">{product.category || 'عام'}</td>
+                                            <td className="p-4 text-gray-300">{product.buyPrice} ج</td>
                                             <td className="p-4 font-bold text-primary">{product.sellPrice} ج</td>
                                             <td className="p-4">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.stock <= 5 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.stock <= 5 ? 'bg-red-900/50 text-danger' : 'bg-green-900/50 text-success'}`}>
                                                     {product.stock}
                                                 </span>
                                             </td>
                                             <td className="p-4 text-center">
-                                                <button onClick={() => openModal(product)} className="w-8 h-8 rounded-full bg-blue-100 text-primary hover:bg-primary hover:text-white transition mx-1"><i className="fas fa-pen"></i></button>
-                                                <button onClick={() => setDeleteConfirm(product.id)} className="w-8 h-8 rounded-full bg-red-100 text-danger hover:bg-danger hover:text-white transition mx-1"><i className="fas fa-trash"></i></button>
+                                                <button onClick={() => openModal(product)} className="w-8 h-8 rounded-full bg-blue-900/30 text-primary hover:bg-primary hover:text-white transition mx-1"><i className="fas fa-pen"></i></button>
+                                                <button onClick={() => setDeleteConfirm(product.id)} className="w-8 h-8 rounded-full bg-red-900/30 text-danger hover:bg-danger hover:text-white transition mx-1"><i className="fas fa-trash"></i></button>
                                             </td>
                                         </tr>
                                     ))}
@@ -678,48 +715,42 @@
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="col-span-2">
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">اسم المنتج <span className="text-danger">*</span></label>
-                                    <input type="text" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+                                    <label className="block text-sm font-bold text-gray-300 mb-1">اسم المنتج <span className="text-danger">*</span></label>
+                                    <input type="text" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">الباركود</label>
-                                    <input type="text" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50 font-mono text-left dir-ltr" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} />
+                                    <label className="block text-sm font-bold text-gray-300 mb-1">الباركود</label>
+                                    <input type="text" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white font-mono text-left dir-ltr" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">التصنيف</label>
-                                    <input type="text" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} />
+                                    <label className="block text-sm font-bold text-gray-300 mb-1">التصنيف</label>
+                                    <input type="text" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">سعر الشراء (التكلفة) <span className="text-danger">*</span></label>
-                                    <input type="number" step="0.01" min="0" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50" value={formData.buyPrice} onChange={e => setFormData({...formData, buyPrice: e.target.value})} required />
+                                    <label className="block text-sm font-bold text-gray-300 mb-1">سعر الشراء (التكلفة) <span className="text-danger">*</span></label>
+                                    <input type="number" step="0.01" min="0" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white" value={formData.buyPrice} onChange={e => setFormData({...formData, buyPrice: e.target.value})} required />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">سعر البيع للجمهور <span className="text-danger">*</span></label>
-                                    <input type="number" step="0.01" min="0" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50" value={formData.sellPrice} onChange={e => setFormData({...formData, sellPrice: e.target.value})} required />
+                                    <label className="block text-sm font-bold text-gray-300 mb-1">سعر البيع للجمهور <span className="text-danger">*</span></label>
+                                    <input type="number" step="0.01" min="0" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white" value={formData.sellPrice} onChange={e => setFormData({...formData, sellPrice: e.target.value})} required />
                                 </div>
                                 <div className="col-span-2">
-                                    <label className="block text-sm font-bold text-gray-700 mb-1">الكمية في المخزون <span className="text-danger">*</span></label>
-                                    <input type="number" min="0" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} required />
+                                    <label className="block text-sm font-bold text-gray-300 mb-1">الكمية في المخزون <span className="text-danger">*</span></label>
+                                    <input type="number" min="0" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white" value={formData.stock} onChange={e => setFormData({...formData, stock: e.target.value})} required />
                                 </div>
                             </div>
-                            <div className="pt-6 mt-4 border-t flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300 transition">إلغاء</button>
-                                <button type="submit" className="px-6 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-700 transition">حفظ المنتج</button>
+                            <div className="pt-6 mt-4 border-t border-borderDark flex justify-end gap-3">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-surfaceAlt border border-borderDark text-white rounded-lg font-bold hover:bg-gray-700 transition">إلغاء</button>
+                                <button type="submit" className="px-6 py-2 bg-primary text-white rounded-lg font-bold hover:bg-blue-600 transition">حفظ المنتج</button>
                             </div>
                         </form>
                     </Modal>
 
-                    <ConfirmModal 
-                        isOpen={!!deleteConfirm} 
-                        onClose={() => setDeleteConfirm(null)} 
-                        onConfirm={handleDelete} 
-                        message="هل أنت متأكد من حذف هذا المنتج نهائياً؟" 
-                    />
+                    <ConfirmModal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} onConfirm={handleDelete} message="هل أنت متأكد من حذف هذا المنتج نهائياً؟" />
                 </div>
             );
         };
 
-        // 4. Invoices
         const Invoices = () => {
             const { sales, setPrintData } = useAppContext();
 
@@ -730,31 +761,31 @@
 
             return (
                 <div className="p-6 h-full flex flex-col">
-                    <h2 className="text-2xl font-bold text-secondary mb-6"><i className="fas fa-file-invoice-dollar ml-2"></i>سجل الفواتير والمبيعات</h2>
+                    <h2 className="text-2xl font-bold text-white mb-6"><i className="fas fa-file-invoice-dollar ml-2 text-primary"></i>سجل الفواتير والمبيعات</h2>
                     
-                    <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="flex-1 bg-surface rounded-xl shadow-sm border border-borderDark overflow-hidden flex flex-col">
                         <div className="overflow-x-auto flex-1">
                             <table className="w-full text-right">
-                                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                                <thead className="bg-surfaceAlt border-b border-borderDark sticky top-0">
                                     <tr>
-                                        <th className="p-4 text-gray-600 font-bold">رقم الفاتورة</th>
-                                        <th className="p-4 text-gray-600 font-bold">التاريخ والوقت</th>
-                                        <th className="p-4 text-gray-600 font-bold">الأصناف</th>
-                                        <th className="p-4 text-gray-600 font-bold">الإجمالي</th>
-                                        <th className="p-4 text-gray-600 font-bold text-center">طباعة</th>
+                                        <th className="p-4 text-gray-300 font-bold">رقم الفاتورة</th>
+                                        <th className="p-4 text-gray-300 font-bold">التاريخ والوقت</th>
+                                        <th className="p-4 text-gray-300 font-bold">الأصناف</th>
+                                        <th className="p-4 text-gray-300 font-bold">الإجمالي</th>
+                                        <th className="p-4 text-gray-300 font-bold text-center">طباعة</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {[...sales].reverse().map(sale => (
-                                        <tr key={sale.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                                            <td className="p-4 font-bold text-gray-800">{sale.id}</td>
-                                            <td className="p-4 text-gray-600">{formatDate(sale.date)}</td>
-                                            <td className="p-4 text-gray-600 text-sm">
+                                        <tr key={sale.id} className="border-b border-borderDark hover:bg-surfaceAlt transition">
+                                            <td className="p-4 font-bold text-white">{sale.id}</td>
+                                            <td className="p-4 text-gray-300">{formatDate(sale.date)}</td>
+                                            <td className="p-4 text-gray-300 text-sm">
                                                 {sale.items.map(i => `${i.name} (x${i.qty})`).join('، ')}
                                             </td>
                                             <td className="p-4 font-bold text-primary">{formatCurrency(sale.total)}</td>
                                             <td className="p-4 text-center">
-                                                <button onClick={() => handleRePrint(sale)} className="w-10 h-10 rounded-lg bg-gray-100 text-gray-600 hover:bg-primary hover:text-white transition shadow-sm" title="إعادة طباعة الفاتورة">
+                                                <button onClick={() => handleRePrint(sale)} className="w-10 h-10 rounded-lg bg-surfaceAlt border border-borderDark text-gray-300 hover:bg-primary hover:text-white hover:border-primary transition shadow-sm" title="إعادة طباعة الفاتورة">
                                                     <i className="fas fa-print"></i>
                                                 </button>
                                             </td>
@@ -771,7 +802,6 @@
             );
         };
 
-        // 5. Expenses
         const Expenses = () => {
             const { expenses, setExpenses, showToast } = useAppContext();
             const [isModalOpen, setIsModalOpen] = useState(false);
@@ -782,10 +812,7 @@
                 if (!formData.desc || !formData.amount) return;
                 
                 setExpenses([...expenses, {
-                    id: generateId(),
-                    desc: formData.desc,
-                    amount: Number(formData.amount),
-                    date: new Date().toISOString()
+                    id: generateId(), desc: formData.desc, amount: Number(formData.amount), date: new Date().toISOString()
                 }]);
                 showToast('تم تسجيل المصروف بنجاح');
                 setIsModalOpen(false);
@@ -795,27 +822,27 @@
             return (
                 <div className="p-6 h-full flex flex-col">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-secondary"><i className="fas fa-money-bill-trend-up ml-2"></i>المصروفات اليومية</h2>
-                        <button onClick={() => setIsModalOpen(true)} className="bg-danger hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition flex items-center gap-2">
+                        <h2 className="text-2xl font-bold text-white"><i className="fas fa-money-bill-trend-up ml-2 text-primary"></i>المصروفات اليومية</h2>
+                        <button onClick={() => setIsModalOpen(true)} className="bg-danger hover:bg-red-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-md transition flex items-center gap-2">
                             <i className="fas fa-minus-circle"></i> تسجيل مصروف
                         </button>
                     </div>
 
-                    <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                    <div className="flex-1 bg-surface rounded-xl shadow-sm border border-borderDark overflow-hidden flex flex-col">
                         <div className="overflow-x-auto flex-1">
                             <table className="w-full text-right">
-                                <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+                                <thead className="bg-surfaceAlt border-b border-borderDark sticky top-0">
                                     <tr>
-                                        <th className="p-4 text-gray-600 font-bold">التاريخ</th>
-                                        <th className="p-4 text-gray-600 font-bold">بيان المصروف</th>
-                                        <th className="p-4 text-gray-600 font-bold">المبلغ</th>
+                                        <th className="p-4 text-gray-300 font-bold">التاريخ</th>
+                                        <th className="p-4 text-gray-300 font-bold">بيان المصروف</th>
+                                        <th className="p-4 text-gray-300 font-bold">المبلغ</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {[...expenses].reverse().map(exp => (
-                                        <tr key={exp.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                                            <td className="p-4 text-gray-600">{formatDate(exp.date)}</td>
-                                            <td className="p-4 font-bold text-gray-800">{exp.desc}</td>
+                                        <tr key={exp.id} className="border-b border-borderDark hover:bg-surfaceAlt transition">
+                                            <td className="p-4 text-gray-300">{formatDate(exp.date)}</td>
+                                            <td className="p-4 font-bold text-white">{exp.desc}</td>
                                             <td className="p-4 font-bold text-danger">{formatCurrency(exp.amount)}</td>
                                         </tr>
                                     ))}
@@ -830,16 +857,16 @@
                     <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="تسجيل مصروف جديد">
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">البيان (مثال: إيجار، كهرباء، نظافة) <span className="text-danger">*</span></label>
-                                <input type="text" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} required />
+                                <label className="block text-sm font-bold text-gray-300 mb-1">البيان (مثال: إيجار، كهرباء، نظافة) <span className="text-danger">*</span></label>
+                                <input type="text" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white" value={formData.desc} onChange={e => setFormData({...formData, desc: e.target.value})} required />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">المبلغ (ج.م) <span className="text-danger">*</span></label>
-                                <input type="number" step="0.01" min="0" className="w-full border rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-gray-50" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required />
+                                <label className="block text-sm font-bold text-gray-300 mb-1">المبلغ (ج.م) <span className="text-danger">*</span></label>
+                                <input type="number" step="0.01" min="0" className="w-full border border-borderDark rounded-lg px-4 py-2 focus:border-primary focus:outline-none bg-surfaceAlt text-white" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} required />
                             </div>
-                            <div className="pt-6 mt-4 border-t flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-bold hover:bg-gray-300 transition">إلغاء</button>
-                                <button type="submit" className="px-6 py-2 bg-danger text-white rounded-lg font-bold hover:bg-red-700 transition">حفظ المصروف</button>
+                            <div className="pt-6 mt-4 border-t border-borderDark flex justify-end gap-3">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 bg-surfaceAlt border border-borderDark text-white rounded-lg font-bold hover:bg-gray-700 transition">إلغاء</button>
+                                <button type="submit" className="px-6 py-2 bg-danger text-white rounded-lg font-bold hover:bg-red-600 transition">حفظ المصروف</button>
                             </div>
                         </form>
                     </Modal>
@@ -847,8 +874,6 @@
             );
         };
 
-
-        // --- Layout Shell ---
         const App = () => {
             const { activeTab, setActiveTab } = useAppContext();
 
@@ -861,15 +886,15 @@
             ];
 
             return (
-                <div className="flex h-screen w-full">
-                    {/* Sidebar - hidden in print */}
-                    <aside className="w-64 bg-secondary text-white flex flex-col z-20 shadow-2xl no-print">
-                        <div className="p-6 border-b border-slate-700/50 flex flex-col items-center justify-center">
-                            <div className="w-16 h-16 bg-gradient-to-tr from-primary to-blue-400 rounded-2xl flex items-center justify-center shadow-lg mb-3">
+                <div className="flex h-screen w-full bg-background text-white">
+                    {/* Sidebar */}
+                    <aside className="w-64 bg-surface text-white flex flex-col z-20 shadow-2xl no-print border-l border-borderDark">
+                        <div className="p-6 border-b border-borderDark flex flex-col items-center justify-center">
+                            <div className="w-16 h-16 bg-gradient-to-tr from-primary to-blue-600 rounded-2xl flex items-center justify-center shadow-lg mb-3">
                                 <i className="fas fa-store text-3xl text-white"></i>
                             </div>
                             <h1 className="text-xl font-bold tracking-wide">سوبر ماركت برو</h1>
-                            <span className="text-xs text-slate-400 mt-1 bg-slate-800 px-2 py-1 rounded-full">نظام محلي (Offline)</span>
+                            <span className="text-xs text-primary mt-1 bg-primary/10 px-2 py-1 rounded-full border border-primary/20">الوضع الليلي 🌙</span>
                         </div>
                         <nav className="flex-1 py-4 overflow-y-auto">
                             <ul className="space-y-2 px-3">
@@ -877,7 +902,7 @@
                                     <li key={item.id}>
                                         <button 
                                             onClick={() => setActiveTab(item.id)}
-                                            className={`w-full text-right px-4 py-3 rounded-xl transition-all flex items-center gap-3 font-bold ${activeTab === item.id ? 'bg-primary text-white shadow-md transform scale-[1.02]' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}
+                                            className={`w-full text-right px-4 py-3 rounded-xl transition-all flex items-center gap-3 font-bold ${activeTab === item.id ? 'bg-primary text-white shadow-md transform scale-[1.02]' : 'text-gray-400 hover:bg-surfaceAlt hover:text-white'}`}
                                         >
                                             <i className={`fas ${item.icon} w-6 text-center text-lg`}></i>
                                             {item.label}
@@ -886,9 +911,6 @@
                                 ))}
                             </ul>
                         </nav>
-                        <div className="p-4 border-t border-slate-700/50 text-center text-slate-400 text-sm">
-                            V 2.0 (Local Storage)
-                        </div>
                     </aside>
 
                     {/* Main Content */}
@@ -904,11 +926,7 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(
-            <AppProvider>
-                <App />
-            </AppProvider>
-        );
+        root.render(<AppProvider><App /></AppProvider>);
     </script>
 </body>
 </html>
